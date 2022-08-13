@@ -507,16 +507,7 @@ STATIC void draw_ellipse_points(const mp_obj_framebuf_t *fb, mp_int_t cx, mp_int
     }
 }
 
-STATIC mp_obj_t framebuf_ellipse(size_t n_args, const mp_obj_t *args_in) {
-    mp_obj_framebuf_t *self = MP_OBJ_TO_PTR(args_in[0]);
-    mp_int_t args[5];
-    framebuf_args(args_in, args, 5); // cx, cy, xradius, yradius, col
-    mp_int_t mask = mp_obj_is_true(args_in[6]) ? ELLIPSE_MASK_FILL : 0;
-    if (n_args > 7) {
-        mask |= mp_obj_get_int(args_in[7]) & ELLIPSE_MASK_ALL;
-    } else {
-        mask |= ELLIPSE_MASK_ALL;
-    }
+STATIC void draw_ellipse(const mp_obj_framebuf_t *self,const mp_int_t *args, mp_int_t mask){
     mp_int_t two_asquare = 2 * args[2] * args[2];
     mp_int_t two_bsquare = 2 * args[3] * args[3];
     mp_int_t x = args[2];
@@ -560,9 +551,62 @@ STATIC mp_obj_t framebuf_ellipse(size_t n_args, const mp_obj_t *args_in) {
             ychange += two_asquare;
         }
     }
+}
+
+STATIC mp_obj_t framebuf_ellipse(size_t n_args, const mp_obj_t *args_in) {
+    mp_obj_framebuf_t *self = MP_OBJ_TO_PTR(args_in[0]);
+    mp_int_t args[5];
+    framebuf_args(args_in, args, 5); // cx, cy, xradius, yradius, col
+    mp_int_t mask = mp_obj_is_true(args_in[6]) ? ELLIPSE_MASK_FILL : 0;
+    if (n_args > 7) {
+        mask |= mp_obj_get_int(args_in[7]) & ELLIPSE_MASK_ALL;
+    } else {
+        mask |= ELLIPSE_MASK_ALL;
+    }
+    draw_ellipse(self, args, mask);
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuf_ellipse_obj, 7, 8, framebuf_ellipse);
+
+STATIC mp_obj_t framebuf_round_rect(size_t n_args, const mp_obj_t *args_in) {
+    mp_obj_framebuf_t *self = MP_OBJ_TO_PTR(args_in[0]);
+    mp_int_t args[6]; // x, y, w, h, radius, col
+    framebuf_args(args_in, args, 6);
+    mp_int_t ell_args[5];
+    ell_args[2] = args[4];
+    ell_args[3] = args[4];
+    ell_args[4] = args[5];
+    if (n_args > 7 && mp_obj_is_true(args_in[7])) {
+        fill_rect(self, args[0] + args[4], args[1], args[2] - 2 * args[4], args[3], args[5]);
+        fill_rect(self, args[0], args[1] + args[4], args[4], args[3] - 2 * args[4], args[5]);
+        fill_rect(self, args[0] + args[2] - args[4], args[1] + args[4], args[4], args[3] - 2 * args[4], args[5]);
+        ell_args[0] = args[0] + args[4];
+        ell_args[1] = args[1] + args[4];
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q2 | ELLIPSE_MASK_FILL);
+        ell_args[0] = args[0] + args[2] - args[4] - 1;
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q1 | ELLIPSE_MASK_FILL);
+        ell_args[1] = args[1] + args[3] - args[4] - 1;
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q4 | ELLIPSE_MASK_FILL);
+        ell_args[0] = args[0] + args[4];
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q3 | ELLIPSE_MASK_FILL);
+    } else {
+        fill_rect(self, args[0] + args[4], args[1], args[2] - 2 * args[4], 1, args[5]);
+        fill_rect(self, args[0] + args[4], args[1] + args[3] - 1, args[2] - 2 * args[4], 1, args[5]);
+        fill_rect(self, args[0], args[1] + args[4], 1, args[3] - 2 * args[4], args[5]);
+        fill_rect(self, args[0] + args[2] - 1, args[1] + args[4], 1, args[3] - 2 * args[4], args[5]);
+        ell_args[0] = args[0] + args[4];
+        ell_args[1] = args[1] + args[4];
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q2);
+        ell_args[0] = args[0] + args[2] - args[4] - 1;
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q1);
+        ell_args[1] = args[1] + args[3] - args[4] - 1;
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q4);
+        ell_args[0] = args[0] + args[4];
+        draw_ellipse(self, ell_args, ELLIPSE_MASK_Q3);
+    }
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuf_round_rect_obj, 7, 8, framebuf_round_rect);
 
 #if MICROPY_PY_ARRAY && !MICROPY_ENABLE_DYNRUNTIME
 // TODO: poly needs mp_binary_get_size & mp_binary_get_val_array which aren't
@@ -796,6 +840,7 @@ STATIC const mp_rom_map_elem_t framebuf_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_rect), MP_ROM_PTR(&framebuf_rect_obj) },
     { MP_ROM_QSTR(MP_QSTR_line), MP_ROM_PTR(&framebuf_line_obj) },
     { MP_ROM_QSTR(MP_QSTR_ellipse), MP_ROM_PTR(&framebuf_ellipse_obj) },
+    { MP_ROM_QSTR(MP_QSTR_round_rect), MP_ROM_PTR(&framebuf_round_rect_obj) },
     #if MICROPY_PY_ARRAY
     { MP_ROM_QSTR(MP_QSTR_poly), MP_ROM_PTR(&framebuf_poly_obj) },
     #endif
