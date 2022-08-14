@@ -572,16 +572,12 @@ STATIC mp_obj_t framebuf_round_rect(size_t n_args, const mp_obj_t *args_in) {
     mp_obj_framebuf_t *self = MP_OBJ_TO_PTR(args_in[0]);
     mp_int_t args[6]; // x, y, w, h, radius, col
     framebuf_args(args_in, args, 6);
-    mp_int_t ell_args[5];
-    ell_args[2] = args[4];
-    ell_args[3] = args[4];
-    ell_args[4] = args[5];
+    // ell_args: x, y, r, r, c where x = xo + r, y = yo + r
+    mp_int_t ell_args[5] = {args[0] + args[4], args[1] + args[4], args[4], args[4], args[5]};
     if (n_args > 7 && mp_obj_is_true(args_in[7])) {
         fill_rect(self, args[0] + args[4], args[1], args[2] - 2 * args[4], args[3], args[5]);
         fill_rect(self, args[0], args[1] + args[4], args[4], args[3] - 2 * args[4], args[5]);
         fill_rect(self, args[0] + args[2] - args[4], args[1] + args[4], args[4], args[3] - 2 * args[4], args[5]);
-        ell_args[0] = args[0] + args[4];
-        ell_args[1] = args[1] + args[4];
         draw_ellipse(self, ell_args, ELLIPSE_MASK_Q2 | ELLIPSE_MASK_FILL);
         ell_args[0] = args[0] + args[2] - args[4] - 1;
         draw_ellipse(self, ell_args, ELLIPSE_MASK_Q1 | ELLIPSE_MASK_FILL);
@@ -594,8 +590,6 @@ STATIC mp_obj_t framebuf_round_rect(size_t n_args, const mp_obj_t *args_in) {
         fill_rect(self, args[0] + args[4], args[1] + args[3] - 1, args[2] - 2 * args[4], 1, args[5]);
         fill_rect(self, args[0], args[1] + args[4], 1, args[3] - 2 * args[4], args[5]);
         fill_rect(self, args[0] + args[2] - 1, args[1] + args[4], 1, args[3] - 2 * args[4], args[5]);
-        ell_args[0] = args[0] + args[4];
-        ell_args[1] = args[1] + args[4];
         draw_ellipse(self, ell_args, ELLIPSE_MASK_Q2);
         ell_args[0] = args[0] + args[2] - args[4] - 1;
         draw_ellipse(self, ell_args, ELLIPSE_MASK_Q1);
