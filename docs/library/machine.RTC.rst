@@ -75,6 +75,13 @@ Methods
       - ``wake`` specifies the sleep mode from where this interrupt can wake
         up the system.
 
+.. method:: RTC.memory([bytestring])
+
+   Some ports have a small amount of RAM associated with the RTC which retain
+   contents during deepsleep. The existence and amount of this RAM is hardware
+   dependent. With the arg present, copies the bytestring to memory. With no
+   arg, returns the memory contents.
+
 Constants
 ---------
 

@@ -65,7 +65,7 @@
 #endif
 
 // Python internal features
-#define MICROPY_TRACKED_ALLOC       (MICROPY_SSL_MBEDTLS)
+#define MICROPY_TRACKED_ALLOC       (MICROPY_SSL_MBEDTLS || MICROPY_BLUETOOTH_BTSTACK)
 #define MICROPY_READER_VFS          (1)
 #define MICROPY_ENABLE_GC           (1)
 #define MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF (1)
@@ -92,26 +92,22 @@
 #endif
 
 // extended modules
-#define MICROPY_PY_USSL_FINALISER   (MICROPY_PY_USSL)
-#define MICROPY_PY_UHASHLIB_MD5     (MICROPY_PY_USSL)
-#define MICROPY_PY_UHASHLIB_SHA1    (MICROPY_PY_USSL)
-#define MICROPY_PY_UCRYPTOLIB       (MICROPY_PY_USSL)
-#define MICROPY_PY_UOS_INCLUDEFILE  "ports/stm32/moduos.c"
+#define MICROPY_PY_SSL_FINALISER    (MICROPY_PY_SSL)
+#define MICROPY_PY_HASHLIB_MD5      (MICROPY_PY_SSL)
+#define MICROPY_PY_HASHLIB_SHA1     (MICROPY_PY_SSL)
+#define MICROPY_PY_CRYPTOLIB        (MICROPY_PY_SSL)
+#define MICROPY_PY_OS_INCLUDEFILE   "ports/stm32/modos.c"
 #define MICROPY_PY_OS_DUPTERM       (3)
-#define MICROPY_PY_UOS_DUPTERM_BUILTIN_STREAM (1)
-#define MICROPY_PY_UOS_DUPTERM_STREAM_DETACHED_ATTACHED (1)
-#define MICROPY_PY_UOS_SEP          (1)
-#define MICROPY_PY_UOS_SYNC         (1)
-#define MICROPY_PY_UOS_UNAME        (1)
-#define MICROPY_PY_UOS_URANDOM      (MICROPY_HW_ENABLE_RNG)
-#define MICROPY_PY_URANDOM_SEED_INIT_FUNC (rng_get())
-#ifndef MICROPY_PY_UTIME
-#define MICROPY_PY_UTIME            (1)
-#endif
-#define MICROPY_PY_UTIME_MP_HAL     (MICROPY_PY_UTIME)
-#ifndef MICROPY_PY_UTIMEQ
-#define MICROPY_PY_UTIMEQ           (1)
-#endif
+#define MICROPY_PY_OS_DUPTERM_BUILTIN_STREAM (1)
+#define MICROPY_PY_OS_DUPTERM_STREAM_DETACHED_ATTACHED (1)
+#define MICROPY_PY_OS_SEP           (1)
+#define MICROPY_PY_OS_SYNC          (1)
+#define MICROPY_PY_OS_UNAME         (1)
+#define MICROPY_PY_OS_URANDOM       (MICROPY_HW_ENABLE_RNG)
+#define MICROPY_PY_RANDOM_SEED_INIT_FUNC (rng_get())
+#define MICROPY_PY_TIME_GMTIME_LOCALTIME_MKTIME (1)
+#define MICROPY_PY_TIME_TIME_TIME_NS (1)
+#define MICROPY_PY_TIME_INCLUDEFILE "ports/stm32/modtime.c"
 #define MICROPY_PY_LWIP_SOCK_RAW    (MICROPY_PY_LWIP)
 #ifndef MICROPY_PY_MACHINE
 #define MICROPY_PY_MACHINE          (1)
@@ -126,22 +122,20 @@
 #define MICROPY_PY_MACHINE_SPI_MSB  (SPI_FIRSTBIT_MSB)
 #define MICROPY_PY_MACHINE_SPI_LSB  (SPI_FIRSTBIT_LSB)
 #define MICROPY_PY_MACHINE_SOFTSPI  (1)
+#define MICROPY_PY_MACHINE_TIMER    (1)
 #endif
 #define MICROPY_HW_SOFTSPI_MIN_DELAY (0)
 #define MICROPY_HW_SOFTSPI_MAX_BAUDRATE (HAL_RCC_GetSysClockFreq() / 48)
-#define MICROPY_PY_UWEBSOCKET       (MICROPY_PY_LWIP)
+#define MICROPY_PY_WEBSOCKET        (MICROPY_PY_LWIP)
 #define MICROPY_PY_WEBREPL          (MICROPY_PY_LWIP)
-#ifndef MICROPY_PY_USOCKET
-#define MICROPY_PY_USOCKET          (1)
+#ifndef MICROPY_PY_SOCKET
+#define MICROPY_PY_SOCKET           (1)
 #endif
 #ifndef MICROPY_PY_NETWORK
 #define MICROPY_PY_NETWORK          (1)
 #endif
 #ifndef MICROPY_PY_ONEWIRE
 #define MICROPY_PY_ONEWIRE          (1)
-#endif
-#ifndef MICROPY_PY_UPLATFORM
-#define MICROPY_PY_UPLATFORM        (1)
 #endif
 
 // fatfs configuration used in ffconf.h
@@ -150,18 +144,6 @@
 #define MICROPY_FATFS_USE_LABEL        (1)
 #define MICROPY_FATFS_RPATH            (2)
 #define MICROPY_FATFS_MULTI_PARTITION  (1)
-
-// TODO these should be generic, not bound to a particular FS implementation
-#if MICROPY_VFS_FAT
-#define mp_type_fileio mp_type_vfs_fat_fileio
-#define mp_type_textio mp_type_vfs_fat_textio
-#elif MICROPY_VFS_LFS1
-#define mp_type_fileio mp_type_vfs_lfs1_fileio
-#define mp_type_textio mp_type_vfs_lfs1_textio
-#elif MICROPY_VFS_LFS2
-#define mp_type_fileio mp_type_vfs_lfs2_fileio
-#define mp_type_textio mp_type_vfs_lfs2_textio
-#endif
 
 #if MICROPY_PY_PYB
 extern const struct _mp_obj_module_t pyb_module;
@@ -181,7 +163,6 @@ extern const struct _mp_obj_module_t stm_module;
 
 #if MICROPY_PY_MACHINE
 #define MACHINE_BUILTIN_MODULE_CONSTANTS \
-    { MP_ROM_QSTR(MP_QSTR_umachine), MP_ROM_PTR(&mp_module_machine) }, \
     { MP_ROM_QSTR(MP_QSTR_machine), MP_ROM_PTR(&mp_module_machine) },
 #else
 #define MACHINE_BUILTIN_MODULE_CONSTANTS
@@ -202,21 +183,10 @@ extern const struct _mp_obj_type_t mp_network_cyw43_type;
 #endif
 
 #if MICROPY_PY_NETWORK_WIZNET5K
-#if MICROPY_PY_LWIP
 extern const struct _mp_obj_type_t mod_network_nic_type_wiznet5k;
-#else
-extern const struct _mod_network_nic_type_t mod_network_nic_type_wiznet5k;
-#endif
 #define MICROPY_HW_NIC_WIZNET5K             { MP_ROM_QSTR(MP_QSTR_WIZNET5K), MP_ROM_PTR(&mod_network_nic_type_wiznet5k) },
 #else
 #define MICROPY_HW_NIC_WIZNET5K
-#endif
-
-#if MICROPY_PY_CC3K
-extern const struct _mod_network_nic_type_t mod_network_nic_type_cc3k;
-#define MICROPY_HW_NIC_CC3K                 { MP_ROM_QSTR(MP_QSTR_CC3K), MP_ROM_PTR(&mod_network_nic_type_cc3k) },
-#else
-#define MICROPY_HW_NIC_CC3K
 #endif
 
 // extra constants
@@ -233,71 +203,9 @@ extern const struct _mod_network_nic_type_t mod_network_nic_type_cc3k;
     MICROPY_HW_NIC_ETH  \
     MICROPY_HW_NIC_CYW43 \
     MICROPY_HW_NIC_WIZNET5K \
-    MICROPY_HW_NIC_CC3K \
     MICROPY_BOARD_NETWORK_INTERFACES \
 
 #define MP_STATE_PORT MP_STATE_VM
-
-#if MICROPY_BLUETOOTH_NIMBLE
-struct _mp_bluetooth_nimble_root_pointers_t;
-struct _mp_bluetooth_nimble_malloc_t;
-#define MICROPY_PORT_ROOT_POINTER_BLUETOOTH_NIMBLE struct _mp_bluetooth_nimble_malloc_t *bluetooth_nimble_memory; struct _mp_bluetooth_nimble_root_pointers_t *bluetooth_nimble_root_pointers;
-#else
-#define MICROPY_PORT_ROOT_POINTER_BLUETOOTH_NIMBLE
-#endif
-
-#if MICROPY_BLUETOOTH_BTSTACK
-struct _mp_bluetooth_btstack_root_pointers_t;
-#define MICROPY_PORT_ROOT_POINTER_BLUETOOTH_BTSTACK struct _mp_bluetooth_btstack_root_pointers_t *bluetooth_btstack_root_pointers;
-#else
-#define MICROPY_PORT_ROOT_POINTER_BLUETOOTH_BTSTACK
-#endif
-
-#ifndef MICROPY_BOARD_ROOT_POINTERS
-#define MICROPY_BOARD_ROOT_POINTERS
-#endif
-
-#define MICROPY_PORT_ROOT_POINTERS \
-    const char *readline_hist[8]; \
-    \
-    mp_obj_t pyb_hid_report_desc; \
-    \
-    mp_obj_t pyb_config_main; \
-    \
-    mp_obj_t pyb_switch_callback; \
-    \
-    mp_obj_t pin_class_mapper; \
-    mp_obj_t pin_class_map_dict; \
-    \
-    mp_obj_t pyb_extint_callback[PYB_EXTI_NUM_VECTORS]; \
-    \
-    /* pointers to all Timer objects (if they have been created) */ \
-    struct _pyb_timer_obj_t *pyb_timer_obj_all[MICROPY_HW_MAX_TIMER]; \
-    \
-    /* stdio is repeated on this UART object if it's not null */ \
-    struct _pyb_uart_obj_t *pyb_stdio_uart; \
-    \
-    /* pointers to all UART objects (if they have been created) */ \
-    struct _pyb_uart_obj_t *pyb_uart_obj_all[MICROPY_HW_MAX_UART + MICROPY_HW_MAX_LPUART]; \
-    \
-    /* pointers to all CAN objects (if they have been created) */ \
-    struct _pyb_can_obj_t *pyb_can_obj_all[MICROPY_HW_MAX_CAN]; \
-    \
-    /* pointers to all I2S objects (if they have been created) */ \
-    struct _machine_i2s_obj_t *machine_i2s_obj[MICROPY_HW_MAX_I2S]; \
-    \
-    /* USB_VCP IRQ callbacks (if they have been set) */ \
-    mp_obj_t pyb_usb_vcp_irq[MICROPY_HW_USB_CDC_NUM]; \
-    \
-    /* list of registered NICs */ \
-    mp_obj_list_t mod_network_nic_list; \
-    \
-    /* root pointers for sub-systems */ \
-    MICROPY_PORT_ROOT_POINTER_BLUETOOTH_NIMBLE \
-    MICROPY_PORT_ROOT_POINTER_BLUETOOTH_BTSTACK \
-    \
-    /* root pointers defined by a board */ \
-        MICROPY_BOARD_ROOT_POINTERS \
 
 // type definitions for the specific machine
 
@@ -362,6 +270,9 @@ static inline mp_uint_t disable_irq(void) {
 #define MICROPY_THREAD_YIELD()
 #endif
 
+// Configuration for shared/runtime/softtimer.c.
+#define MICROPY_SOFT_TIMER_TICKS_MS uwTick
+
 // For regular code that wants to prevent "background tasks" from running.
 // These background tasks (LWIP, Bluetooth) run in PENDSV context.
 #define MICROPY_PY_PENDSV_ENTER   uint32_t atomic_state = raise_irq_pri(IRQ_PRI_PENDSV);
@@ -372,6 +283,10 @@ static inline mp_uint_t disable_irq(void) {
 #define MICROPY_PY_LWIP_ENTER   MICROPY_PY_PENDSV_ENTER
 #define MICROPY_PY_LWIP_REENTER MICROPY_PY_PENDSV_REENTER
 #define MICROPY_PY_LWIP_EXIT    MICROPY_PY_PENDSV_EXIT
+
+#ifndef MICROPY_PY_NETWORK_HOSTNAME_DEFAULT
+#define MICROPY_PY_NETWORK_HOSTNAME_DEFAULT "mpy-stm32"
+#endif
 
 #if MICROPY_PY_BLUETOOTH_USE_SYNC_EVENTS
 // Bluetooth code only runs in the scheduler, no locking/mutex required.
@@ -390,11 +305,19 @@ static inline mp_uint_t disable_irq(void) {
 #define MICROPY_PY_BLUETOOTH_HCI_READ_MODE MICROPY_PY_BLUETOOTH_HCI_READ_MODE_BYTE
 #endif
 
+#ifndef MICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE
+#define MICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE (1)
+#endif
+
+#ifndef MICROPY_PY_BLUETOOTH_ENABLE_L2CAP_CHANNELS
+#define MICROPY_PY_BLUETOOTH_ENABLE_L2CAP_CHANNELS (MICROPY_BLUETOOTH_NIMBLE)
+#endif
+
 // We need an implementation of the log2 function which is not a macro
 #define MP_NEED_LOG2 (1)
 
 // We need to provide a declaration/definition of alloca()
 #include <alloca.h>
 
-// Needed for MICROPY_PY_URANDOM_SEED_INIT_FUNC.
+// Needed for MICROPY_PY_RANDOM_SEED_INIT_FUNC.
 uint32_t rng_get(void);

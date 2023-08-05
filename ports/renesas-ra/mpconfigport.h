@@ -5,6 +5,7 @@
  *
  * Copyright (c) 2013-2017 Damien P. George
  * Copyright (c) 2021,2022 Renesas Electronics Corporation
+ * Copyright (c) 2023 Vekatech Ltd.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -83,7 +84,6 @@
 #ifndef MICROPY_PY_BUILTINS_HELP_TEXT
 #define MICROPY_PY_BUILTINS_HELP_TEXT ra_help_text
 #endif
-#define MICROPY_PY_IO_FILEIO        (MICROPY_VFS_FAT || MICROPY_VFS_LFS1 || MICROPY_VFS_LFS2)
 #ifndef MICROPY_PY_SYS_PLATFORM     // let boards override it if they want
 #define MICROPY_PY_SYS_PLATFORM     "renesas-ra"
 #endif
@@ -92,21 +92,17 @@
 #endif
 
 // extended modules
-#define MICROPY_PY_UOS_INCLUDEFILE  "ports/renesas-ra/moduos.c"
+#define MICROPY_PY_OS_INCLUDEFILE   "ports/renesas-ra/modos.c"
 #define MICROPY_PY_OS_DUPTERM       (3)
-#define MICROPY_PY_UOS_DUPTERM_BUILTIN_STREAM (1)
-#define MICROPY_PY_UOS_DUPTERM_STREAM_DETACHED_ATTACHED (1)
-#define MICROPY_PY_UOS_SEP          (1)
-#define MICROPY_PY_UOS_SYNC         (1)
-#define MICROPY_PY_UOS_UNAME        (1)
-#define MICROPY_PY_UOS_URANDOM      (MICROPY_HW_ENABLE_RNG)
-#ifndef MICROPY_PY_UTIME
-#define MICROPY_PY_UTIME            (1)
-#endif
-#define MICROPY_PY_UTIME_MP_HAL     (MICROPY_PY_UTIME)
-#ifndef MICROPY_PY_UTIMEQ
-#define MICROPY_PY_UTIMEQ           (1)
-#endif
+#define MICROPY_PY_OS_DUPTERM_BUILTIN_STREAM (1)
+#define MICROPY_PY_OS_DUPTERM_STREAM_DETACHED_ATTACHED (1)
+#define MICROPY_PY_OS_SEP           (1)
+#define MICROPY_PY_OS_SYNC          (1)
+#define MICROPY_PY_OS_UNAME         (1)
+#define MICROPY_PY_OS_URANDOM       (MICROPY_HW_ENABLE_RNG)
+#define MICROPY_PY_TIME_GMTIME_LOCALTIME_MKTIME (1)
+#define MICROPY_PY_TIME_TIME_TIME_NS (1)
+#define MICROPY_PY_TIME_INCLUDEFILE "ports/renesas-ra/modtime.c"
 #ifndef MICROPY_PY_MACHINE
 #define MICROPY_PY_MACHINE          (1)
 #ifndef MICROPY_PY_MACHINE_BITSTREAM
@@ -120,14 +116,21 @@
 #define MICROPY_PY_MACHINE_SPI_MSB  (SPI_FIRSTBIT_MSB)
 #define MICROPY_PY_MACHINE_SPI_LSB  (SPI_FIRSTBIT_LSB)
 #define MICROPY_PY_MACHINE_SOFTSPI  (1)
+#define MICROPY_PY_MACHINE_TIMER    (1)
+#define MICROPY_SOFT_TIMER_TICKS_MS uwTick
+#if MICROPY_HW_ENABLE_HW_PWM
+#define MICROPY_PY_MACHINE_PWM      (1)
+#define MICROPY_PY_MACHINE_PWM_DUTY (1)
+#define MICROPY_PY_MACHINE_PWM_INCLUDEFILE  "ports/renesas-ra/machine_pwm.c"
+#endif
+#if MICROPY_HW_ENABLE_HW_DAC
+#define MICROPY_PY_MACHINE_DAC      (1)
+#endif
 #endif
 #define MICROPY_HW_SOFTSPI_MIN_DELAY (0)
 #define MICROPY_HW_SOFTSPI_MAX_BAUDRATE (48000000 / 48)
 #ifndef MICROPY_PY_ONEWIRE
 #define MICROPY_PY_ONEWIRE          (1)
-#endif
-#ifndef MICROPY_PY_UPLATFORM
-#define MICROPY_PY_UPLATFORM        (1)
 #endif
 
 // fatfs configuration used in ffconf.h
@@ -137,21 +140,8 @@
 #define MICROPY_FATFS_RPATH            (2)
 #define MICROPY_FATFS_MULTI_PARTITION  (1)
 
-// TODO these should be generic, not bound to a particular FS implementation
-#if MICROPY_VFS_FAT
-#define mp_type_fileio mp_type_vfs_fat_fileio
-#define mp_type_textio mp_type_vfs_fat_textio
-#elif MICROPY_VFS_LFS1
-#define mp_type_fileio mp_type_vfs_lfs1_fileio
-#define mp_type_textio mp_type_vfs_lfs1_textio
-#elif MICROPY_VFS_LFS2
-#define mp_type_fileio mp_type_vfs_lfs2_fileio
-#define mp_type_textio mp_type_vfs_lfs2_textio
-#endif
-
 #if MICROPY_PY_MACHINE
 #define MACHINE_BUILTIN_MODULE_CONSTANTS \
-    { MP_ROM_QSTR(MP_QSTR_umachine), MP_ROM_PTR(&mp_module_machine) }, \
     { MP_ROM_QSTR(MP_QSTR_machine), MP_ROM_PTR(&mp_module_machine) },
 #else
 #define MACHINE_BUILTIN_MODULE_CONSTANTS
@@ -162,38 +152,6 @@
     MACHINE_BUILTIN_MODULE_CONSTANTS \
 
 #define MP_STATE_PORT MP_STATE_VM
-
-#ifndef MICROPY_BOARD_ROOT_POINTERS
-#define MICROPY_BOARD_ROOT_POINTERS
-#endif
-
-#define MICROPY_PORT_ROOT_POINTERS \
-    const char *readline_hist[8]; \
-    \
-    mp_obj_t pyb_hid_report_desc; \
-    \
-    mp_obj_t pyb_config_main; \
-    \
-    mp_obj_t pyb_switch_callback; \
-    \
-    mp_obj_t pyb_extint_callback[PYB_EXTI_NUM_VECTORS]; \
-    \
-    /* pointers to all Timer objects (if they have been created) */ \
-    struct _pyb_timer_obj_t *pyb_timer_obj_all[MICROPY_HW_MAX_TIMER]; \
-    \
-    /* stdio is repeated on this UART object if it's not null */ \
-    struct _machine_uart_obj_t *pyb_stdio_uart; \
-    \
-    /* pointers to all UART objects (if they have been created) */ \
-    struct _machine_uart_obj_t *machine_uart_obj_all[MICROPY_HW_MAX_UART + MICROPY_HW_MAX_LPUART]; \
-    \
-    /* list of registered NICs */ \
-    /* mp_obj_list_t mod_network_nic_list; */ \
-    \
-    /* root pointers for sub-systems */ \
-    \
-    /* root pointers defined by a board */ \
-    MICROPY_BOARD_ROOT_POINTERS \
 
 // type definitions for the specific machine
 

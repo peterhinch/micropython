@@ -37,9 +37,12 @@ const mp_obj_type_t machine_wdt_type;
 
 typedef struct _machine_wdt_obj_t {
     mp_obj_base_t base;
+    esp_task_wdt_user_handle_t twdt_user_handle;
 } machine_wdt_obj_t;
 
-STATIC machine_wdt_obj_t wdt_default = {{&machine_wdt_type}};
+STATIC machine_wdt_obj_t wdt_default = {
+    {&machine_wdt_type}, 0
+};
 
 STATIC mp_obj_t machine_wdt_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
     enum { ARG_id, ARG_timeout };
@@ -54,26 +57,36 @@ STATIC mp_obj_t machine_wdt_make_new(const mp_obj_type_t *type_in, size_t n_args
         mp_raise_ValueError(NULL);
     }
 
-    // Convert milliseconds to seconds (esp_task_wdt_init needs seconds)
-    args[ARG_timeout].u_int /= 1000;
-
     if (args[ARG_timeout].u_int <= 0) {
         mp_raise_ValueError(MP_ERROR_TEXT("WDT timeout too short"));
     }
 
-    mp_int_t rs_code = esp_task_wdt_init(args[ARG_timeout].u_int, true);
+    esp_task_wdt_config_t config = {
+        .timeout_ms = args[ARG_timeout].u_int,
+        .idle_core_mask = 0,
+        .trigger_panic = true,
+    };
+    mp_int_t rs_code = esp_task_wdt_reconfigure(&config);
     if (rs_code != ESP_OK) {
         mp_raise_OSError(rs_code);
     }
 
-    esp_task_wdt_add(NULL);
+    if (wdt_default.twdt_user_handle == NULL) {
+        rs_code = esp_task_wdt_add_user("mpy_machine_wdt", &wdt_default.twdt_user_handle);
+        if (rs_code != ESP_OK) {
+            mp_raise_OSError(rs_code);
+        }
+    }
 
     return &wdt_default;
 }
 
 STATIC mp_obj_t machine_wdt_feed(mp_obj_t self_in) {
     (void)self_in;
-    esp_task_wdt_reset();
+    mp_int_t rs_code = esp_task_wdt_reset_user(wdt_default.twdt_user_handle);
+    if (rs_code != ESP_OK) {
+        mp_raise_OSError(rs_code);
+    }
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_wdt_feed_obj, machine_wdt_feed);
@@ -83,9 +96,10 @@ STATIC const mp_rom_map_elem_t machine_wdt_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(machine_wdt_locals_dict, machine_wdt_locals_dict_table);
 
-const mp_obj_type_t machine_wdt_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_WDT,
-    .make_new = machine_wdt_make_new,
-    .locals_dict = (mp_obj_t)&machine_wdt_locals_dict,
-};
+MP_DEFINE_CONST_OBJ_TYPE(
+    machine_wdt_type,
+    MP_QSTR_WDT,
+    MP_TYPE_FLAG_NONE,
+    make_new, machine_wdt_make_new,
+    locals_dict, &machine_wdt_locals_dict
+    );

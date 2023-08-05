@@ -88,6 +88,7 @@ class FreezeError(Exception):
 
 class Config:
     MPY_VERSION = 6
+    MPY_SUB_VERSION = 1
     MICROPY_LONGINT_IMPL_NONE = 0
     MICROPY_LONGINT_IMPL_LONGLONG = 1
     MICROPY_LONGINT_IMPL_MPZ = 2
@@ -936,6 +937,10 @@ class RawCode(object):
                 % (self.escaped_name, self.offset_line_info)
             )
             print(
+                "        .line_info_top = fun_data_%s + %u,"
+                % (self.escaped_name, self.offset_closure_info)
+            )
+            print(
                 "        .opcodes = fun_data_%s + %u," % (self.escaped_name, self.offset_opcodes)
             )
             print("    },")
@@ -1115,7 +1120,6 @@ class RawCodeNative(RawCode):
 
         i_top = len(self.fun_data)
         i = 0
-        qi = 0
         while i < i_top:
             # copy machine code (max 16 bytes)
             i16 = min(i + 16, i_top)
@@ -1271,7 +1275,7 @@ def read_raw_code(reader, parent_name, qstr_table, obj_table, segments):
                 if native_scope_flags & MP_SCOPE_FLAG_VIPERRODATA:
                     rodata_size = reader.read_uint()
                 if native_scope_flags & MP_SCOPE_FLAG_VIPERBSS:
-                    bss_size = reader.read_uint()
+                    reader.read_uint()  # bss_size
                 if native_scope_flags & MP_SCOPE_FLAG_VIPERRODATA:
                     reader.read_bytes(rodata_size)
                 if native_scope_flags & MP_SCOPE_FLAG_VIPERRELOC:
@@ -1280,10 +1284,10 @@ def read_raw_code(reader, parent_name, qstr_table, obj_table, segments):
                         if op == 0xFF:
                             break
                         if op & 1:
-                            addr = reader.read_uint()
+                            reader.read_uint()  # addr
                         op >>= 1
                         if op <= 5 and op & 1:
-                            n = reader.read_uint()
+                            reader.read_uint()  # n
             else:
                 assert kind == MP_CODE_NATIVE_ASM
                 native_n_pos_args = reader.read_uint()
@@ -1335,6 +1339,9 @@ def read_mpy(filename):
         feature_byte = header[2]
         mpy_native_arch = feature_byte >> 2
         if mpy_native_arch != MP_NATIVE_ARCH_NONE:
+            mpy_sub_version = feature_byte & 3
+            if mpy_sub_version != config.MPY_SUB_VERSION:
+                raise MPYReadError(filename, "incompatible .mpy sub-version")
             if config.native_arch == MP_NATIVE_ARCH_NONE:
                 config.native_arch = mpy_native_arch
             elif config.native_arch != mpy_native_arch:
@@ -1658,7 +1665,9 @@ def merge_mpy(compiled_modules, output_file):
     else:
         main_cm_idx = None
         for idx, cm in enumerate(compiled_modules):
-            if cm.header[2]:
+            feature_byte = cm.header[2]
+            mpy_native_arch = feature_byte >> 2
+            if mpy_native_arch:
                 # Must use qstr_table and obj_table from this raw_code
                 if main_cm_idx is not None:
                     raise Exception("can't merge files when more than one contains native code")
@@ -1670,7 +1679,7 @@ def merge_mpy(compiled_modules, output_file):
         header = bytearray(4)
         header[0] = ord("M")
         header[1] = config.MPY_VERSION
-        header[2] = config.native_arch << 2
+        header[2] = config.native_arch << 2 | config.MPY_SUB_VERSION if config.native_arch else 0
         header[3] = config.mp_small_int_bits
         merged_mpy.extend(header)
 

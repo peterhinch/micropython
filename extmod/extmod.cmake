@@ -6,6 +6,7 @@ set(MICROPY_OOFATFS_DIR "${MICROPY_DIR}/lib/oofatfs")
 set(MICROPY_SOURCE_EXTMOD
     ${MICROPY_DIR}/shared/libc/abort_.c
     ${MICROPY_DIR}/shared/libc/printf.c
+    ${MICROPY_EXTMOD_DIR}/btstack/modbluetooth_btstack.c
     ${MICROPY_EXTMOD_DIR}/machine_bitstream.c
     ${MICROPY_EXTMOD_DIR}/machine_i2c.c
     ${MICROPY_EXTMOD_DIR}/machine_mem.c
@@ -14,31 +15,34 @@ set(MICROPY_SOURCE_EXTMOD
     ${MICROPY_EXTMOD_DIR}/machine_signal.c
     ${MICROPY_EXTMOD_DIR}/machine_spi.c
     ${MICROPY_EXTMOD_DIR}/modbluetooth.c
-    ${MICROPY_EXTMOD_DIR}/modbtree.c
     ${MICROPY_EXTMOD_DIR}/modframebuf.c
+    ${MICROPY_EXTMOD_DIR}/modlwip.c
     ${MICROPY_EXTMOD_DIR}/modnetwork.c
     ${MICROPY_EXTMOD_DIR}/modonewire.c
-    ${MICROPY_EXTMOD_DIR}/moduasyncio.c
-    ${MICROPY_EXTMOD_DIR}/modubinascii.c
-    ${MICROPY_EXTMOD_DIR}/moducryptolib.c
+    ${MICROPY_EXTMOD_DIR}/modasyncio.c
+    ${MICROPY_EXTMOD_DIR}/modbinascii.c
+    ${MICROPY_EXTMOD_DIR}/modcryptolib.c
     ${MICROPY_EXTMOD_DIR}/moductypes.c
-    ${MICROPY_EXTMOD_DIR}/moduhashlib.c
-    ${MICROPY_EXTMOD_DIR}/moduheapq.c
-    ${MICROPY_EXTMOD_DIR}/modujson.c
-    ${MICROPY_EXTMOD_DIR}/moduos.c
-    ${MICROPY_EXTMOD_DIR}/moduplatform.c
-    ${MICROPY_EXTMOD_DIR}/modurandom.c
-    ${MICROPY_EXTMOD_DIR}/modure.c
-    ${MICROPY_EXTMOD_DIR}/moduselect.c
-    ${MICROPY_EXTMOD_DIR}/modusocket.c
-    ${MICROPY_EXTMOD_DIR}/modussl_axtls.c
-    ${MICROPY_EXTMOD_DIR}/modussl_mbedtls.c
-    ${MICROPY_EXTMOD_DIR}/modutimeq.c
-    ${MICROPY_EXTMOD_DIR}/moduwebsocket.c
-    ${MICROPY_EXTMOD_DIR}/moduzlib.c
+    ${MICROPY_EXTMOD_DIR}/moddeflate.c
+    ${MICROPY_EXTMOD_DIR}/modhashlib.c
+    ${MICROPY_EXTMOD_DIR}/modheapq.c
+    ${MICROPY_EXTMOD_DIR}/modjson.c
+    ${MICROPY_EXTMOD_DIR}/modos.c
+    ${MICROPY_EXTMOD_DIR}/modplatform.c
+    ${MICROPY_EXTMOD_DIR}/modrandom.c
+    ${MICROPY_EXTMOD_DIR}/modre.c
+    ${MICROPY_EXTMOD_DIR}/modselect.c
+    ${MICROPY_EXTMOD_DIR}/modsocket.c
+    ${MICROPY_EXTMOD_DIR}/modssl_axtls.c
+    ${MICROPY_EXTMOD_DIR}/modssl_mbedtls.c
+    ${MICROPY_EXTMOD_DIR}/modtime.c
+    ${MICROPY_EXTMOD_DIR}/modwebsocket.c
     ${MICROPY_EXTMOD_DIR}/modwebrepl.c
-    ${MICROPY_EXTMOD_DIR}/uos_dupterm.c
-    ${MICROPY_EXTMOD_DIR}/utime_mphal.c
+    ${MICROPY_EXTMOD_DIR}/network_cyw43.c
+    ${MICROPY_EXTMOD_DIR}/network_lwip.c
+    ${MICROPY_EXTMOD_DIR}/network_ninaw10.c
+    ${MICROPY_EXTMOD_DIR}/network_wiznet5k.c
+    ${MICROPY_EXTMOD_DIR}/os_dupterm.c
     ${MICROPY_EXTMOD_DIR}/vfs.c
     ${MICROPY_EXTMOD_DIR}/vfs_blockdev.c
     ${MICROPY_EXTMOD_DIR}/vfs_fat.c
@@ -93,8 +97,13 @@ if(MICROPY_PY_BTREE)
     )
 
     list(APPEND MICROPY_DEF_CORE
+        MICROPY_PY_BTREE=1
         __DBINTERFACE_PRIVATE=1
         "virt_fd_t=void*"
+    )
+
+    list(APPEND MICROPY_SOURCE_EXTMOD
+        ${MICROPY_EXTMOD_DIR}/modbtree.c
     )
 endif()
 
@@ -110,6 +119,7 @@ if(MICROPY_SSL_MBEDTLS)
     )
 
     target_sources(micropy_lib_mbedtls INTERFACE
+        ${MICROPY_DIR}/lib/mbedtls_errors/mp_mbedtls_errors.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/aes.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/aesni.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/arc4.c
@@ -137,7 +147,6 @@ if(MICROPY_SSL_MBEDTLS)
         ${MICROPY_LIB_MBEDTLS_DIR}/library/ecp_curves.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/entropy.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/entropy_poll.c
-        ${MICROPY_LIB_MBEDTLS_DIR}/library/error.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/gcm.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/havege.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/hmac_drbg.c
@@ -145,7 +154,6 @@ if(MICROPY_SSL_MBEDTLS)
         ${MICROPY_LIB_MBEDTLS_DIR}/library/md4.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/md5.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/md.c
-        ${MICROPY_LIB_MBEDTLS_DIR}/library/md_wrap.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/oid.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/padlock.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/pem.c
@@ -170,9 +178,11 @@ if(MICROPY_SSL_MBEDTLS)
         ${MICROPY_LIB_MBEDTLS_DIR}/library/ssl_cli.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/ssl_cookie.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/ssl_srv.c
+        ${MICROPY_LIB_MBEDTLS_DIR}/library/ssl_msg.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/ssl_ticket.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/ssl_tls.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/timing.c
+        ${MICROPY_LIB_MBEDTLS_DIR}/library/constant_time.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/x509.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/x509_create.c
         ${MICROPY_LIB_MBEDTLS_DIR}/library/x509_crl.c
@@ -183,8 +193,12 @@ if(MICROPY_SSL_MBEDTLS)
         ${MICROPY_LIB_MBEDTLS_DIR}/library/xtea.c
     )
 
+    if(NOT MBEDTLS_CONFIG_FILE)
+        set(MBEDTLS_CONFIG_FILE "${MICROPY_PORT_DIR}/mbedtls/mbedtls_config.h")
+    endif()
+
     target_compile_definitions(micropy_lib_mbedtls INTERFACE
-        MBEDTLS_CONFIG_FILE="${MICROPY_PORT_DIR}/mbedtls/mbedtls_config.h"
+        MBEDTLS_CONFIG_FILE="${MBEDTLS_CONFIG_FILE}"
     )
 
     list(APPEND MICROPY_INC_CORE
@@ -246,4 +260,6 @@ if(MICROPY_PY_LWIP)
     list(APPEND MICROPY_INC_CORE
         ${MICROPY_LIB_LWIP_DIR}/include
     )
+
+    string(CONCAT GIT_SUBMODULES "${GIT_SUBMODULES} " lib/lwip)
 endif()
